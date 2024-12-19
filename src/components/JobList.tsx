@@ -1,6 +1,6 @@
 import React from 'react';
 import { Job } from '../types/Job';
-import { updateJobStatus, deleteJob } from '../utils/storage';
+import { updateJob, deleteJob } from '../services/firebase/db';
 import { JOB_STATUS } from '../utils/constants';
 import { Trash2, CheckCircle, XCircle, ExternalLink } from 'lucide-react';
 import JobListDesktop from './JobListDesktop';
@@ -12,14 +12,22 @@ interface JobListProps {
 }
 
 export default function JobList({ jobs, onUpdate }: JobListProps) {
-  const handleStatusUpdate = (id: string, status: Job['status']) => {
-    updateJobStatus(id, status);
-    onUpdate();
+  const handleStatusUpdate = async (id: string, status: Job['status']) => {
+    try {
+      await updateJob(id, { status });
+      onUpdate();
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    deleteJob(id);
-    onUpdate();
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteJob(id);
+      onUpdate();
+    } catch (error) {
+      console.error('Error deleting job:', error);
+    }
   };
 
   if (jobs.length === 0) {

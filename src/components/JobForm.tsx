@@ -1,54 +1,46 @@
 import React, { useState } from 'react';
-import { Job } from '../types/Job';
-import { saveJob } from '../utils/storage';
+import { useAuth } from '../contexts/AuthContext';
+import { createJob } from '../services/firebase/db';
 import { AlertCircle, CheckCircle } from 'lucide-react';
+import { Job } from '../types/Job';
 
 interface JobFormProps {
   onSave: () => void;
 }
 
 export default function JobForm({ onSave }: JobFormProps) {
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const { currentUser } = useAuth();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     company: '',
     link: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newJob: Job = {
-      id: crypto.randomUUID(),
-      ...formData,
-      status: 'applied',
-      appliedDate: new Date().toISOString(),
-    };
-
-    const success = saveJob(newJob);
-    if (success) {
-      setMessage({ type: 'success', text: 'Job application saved successfully!' });
+    if (!currentUser) return;
+    
+    setLoading(true);
+    try {
+      const jobData = {
+        ...formData,
+        status: 'applied' as const,
+        appliedDate: new Date().toISOString(),
+      };
+      
+      await createJob(currentUser.uid, jobData);
       setFormData({ title: '', company: '', link: '' });
-      onSave(); // Trigger parent update
-    } else {
-      setMessage({ type: 'error', text: 'You have already applied for this job!' });
+      onSave();
+    } catch (error) {
+      console.error('Error saving job:', error);
+    } finally {
+      setLoading(false);
     }
-
-    setTimeout(() => setMessage(null), 3000);
   };
 
   return (
     <div className="w-full">
-      {message && (
-        <div
-          className={`mb-4 p-4 rounded-lg flex items-center gap-2 ${
-            message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-          }`}
-        >
-          {message.type === 'success' ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
-          {message.text}
-        </div>
-      )}
-      
       <form onSubmit={handleSubmit} className="bg-white shadow-md rounded-lg p-6">
         <div className="mb-4">
           <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="title">
@@ -94,9 +86,12 @@ export default function JobForm({ onSave }: JobFormProps) {
 
         <button
           type="submit"
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition-colors"
+          disabled={loading}
+          className={`bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full transition-colors ${
+            loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
-          Save Application
+          {loading ? 'Saving...' : 'Save Application'}
         </button>
       </form>
     </div>
